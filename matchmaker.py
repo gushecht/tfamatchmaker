@@ -1,4 +1,7 @@
-# import json
+# TODO
+# Favicon
+# MailerWebService
+
 import cherrypy
 from matchmaker_utils import *
 import os

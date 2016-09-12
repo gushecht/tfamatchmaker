@@ -93,8 +93,8 @@ def relabel_event(event_name):
 
 def convert_time(time, category):
     SECONDS_IN_A_MINUTE = 60
-    ARBITRARILY_EASY_WALKON = 9999
-    ARBITRARILY_HARD_BEST = -9999
+    ARBITRARILY_EASY_WALKON = 999
+    ARBITRARILY_HARD_BEST = 1
     if type(time) != float and time != 'null':
         if category == 'walkon':
             if time == '999':
@@ -114,8 +114,8 @@ def convert_time(time, category):
 
 
 def fill_time(time, category):
-    ARBITRARILY_EASY_WALKON = 9999
-    ARBITRARILY_HARD_BEST = -9999
+    ARBITRARILY_EASY_WALKON = 999
+    ARBITRARILY_HARD_BEST = 1
     if pd.isnull(time):
         if category == 'walkon':
             return ARBITRARILY_EASY_WALKON
@@ -129,8 +129,8 @@ def convert_length(length, category):
     INCHES_IN_A_FOOT = 12
     CENTIMETERS_IN_A_METER = 100
     INCHES_IN_A_METER = 39.3701
-    ARBITRARILY_EASY_WALKON = -9999
-    ARBITRARILY_HARD_BEST = 9999
+    ARBITRARILY_EASY_WALKON = 1
+    ARBITRARILY_HARD_BEST = 999
     if type(length) != float and length != 'null':
         # Branch on walkon versus best because bests are in meters.
         if category == 'walkon':
@@ -177,8 +177,8 @@ def convert_length(length, category):
 
 
 def fill_length(length, category):
-    ARBITRARILY_EASY_WALKON = -9999
-    ARBITRARILY_HARD_BEST = 9999
+    ARBITRARILY_EASY_WALKON = 1
+    ARBITRARILY_HARD_BEST = 999
     if pd.isnull(length):
         if category == 'walkon':
             return ARBITRARILY_EASY_WALKON
@@ -224,8 +224,8 @@ def clean_bests_data(bests):
             bests[event] = bests[event].apply(
                 lambda x: convert_length(x, 'best'))
 
-    bests['F300M'] = -9999
-    bests['M300H'] = -9999
+    bests['F300M'] = 1
+    bests['M300H'] = 1
 
     drop_columns = ['Do they Have an CU account', 'Internally imported?',
                     'Marked Off In Salesforce',
@@ -339,20 +339,37 @@ def find_matches(bests, walkons, sex, event, pr):
         results[event_walkon] = \
             results[event_walkon].apply(lambda x:
                                         fill_time(x, 'walkon'))
-        results.sort_values(by=[pro_column, event_walkon, event_best],
-                            ascending=[False, True, True], inplace=True)
+        results['both_times'] = map(lambda x, y: x != 1 and y != 999,
+                                    results[event_best], results[event_walkon])
+        results['neither_times'] = map(lambda x, y: x == 1 and y == 999,
+                                       results[event_best],
+                                       results[event_walkon])
+        results.sort_values(by=[pro_column, 'both_times', event_walkon,
+                                event_best],
+                            ascending=[False, False, True, True], inplace=True)
+        results = results[results['neither_times'] != 1]
     else:
         results[event_best] = \
             results[event_best].apply(lambda x: fill_length(x, 'best'))
         results[event_walkon] = \
             results[event_walkon].apply(lambda x:
                                         fill_length(x, 'walkon'))
-        results.sort_values(by=[event_walkon, event_best],
+        results['both_lengths'] = map(lambda x, y: x != 999 and y != 1,
+                                      results[event_best],
+                                      results[event_walkon])
+        results['neither_lengths'] = map(lambda x, y: x == 999 and y == 1,
+                                         results[event_best],
+                                         results[event_walkon])
+        results.sort_values(by=[pro_column, 'both_lengths', event_walkon,
+                                event_best],
                             ascending=False, inplace=True)
+        results = results[results['neither_lengths'] != 1]
 
     results.to_csv('temp.csv')
 
-    results = results.head(5)
+    num_results = 30 if len(results) >= 30 else len(results)
+
+    results = results.head(num_results)
 
     return results
 
